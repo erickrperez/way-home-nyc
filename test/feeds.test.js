@@ -117,6 +117,18 @@ test("Hub keeps the last good data when a source starts failing", async () => {
   assert.equal(hub.status().x.error, "down");
 });
 
+test("normalizeCameras keeps valid NYC cameras and reads the string isOnline flag", async () => {
+  const { normalizeCameras, isCameraId } = await import("../lib/feeds.js");
+  const out = normalizeCameras([
+    { id: "8a6bc417-4877-4ebe-8052-88c1b261baf1", name: "Central Park West @ 86 St", latitude: 40.785302, longitude: -73.969353, area: "Manhattan", isOnline: "true" },
+    { id: "9b6bc417-4877-4ebe-8052-88c1b261baf2", name: "Off", latitude: "40.75", longitude: "-73.99", isOnline: "false" },
+    { id: "../etc/passwd", latitude: 40.7, longitude: -74 },
+    { id: "7c6bc417-4877-4ebe-8052-88c1b261baf3", latitude: 0, longitude: 0, isOnline: "true" },
+  ]);
+  assert.deepEqual(out.map(c => c.online), [true, false]);
+  assert.equal(isCameraId("../x"), false);
+});
+
 test("describeNyc labels a floating timestamp", async () => {
   const { describeNyc } = await import("../lib/feeds.js");
   assert.equal(describeNyc("2026-10-06T02:05:43.000"), "Oct 6, 2:05 am");

@@ -36,7 +36,8 @@ const ZONES = {
   city: [[40.73, -73.95], 11], msg: [[40.7505, -73.9934], 15], canyon: [[40.7095, -74.0105], 15],
   midtown: [[40.7549, -73.984], 14], barclays: [[40.6826, -73.9754], 15],
 };
-const map = L.map("map", { preferCanvas: true }).setView(...ZONES.city);
+// Opens on Madison Square Garden, the center of a Knicks night.
+const map = L.map("map", { preferCanvas: true }).setView(...ZONES.msg);
 const isDark = () => document.documentElement.dataset.theme === "dark" ||
   (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
 // Base map: OpenStreetMap's standard tiles (no key). A server can swap in another
@@ -49,7 +50,7 @@ function setTiles() {
   if (tiles) tiles.remove();
   tiles = L.tileLayer(tileConfig.url, {
     maxZoom: 19, className: "basemap",
-    attribution: `${tileConfig.attribution} · NYC Open Data · MTA · NWS`,
+    attribution: `${tileConfig.attribution} · NYC Open Data · NYC DOT · MTA · NWS`,
   }).addTo(map);
 }
 setTiles();
@@ -57,8 +58,8 @@ api("/api/config").then(c => { if (c.tileUrl) { tileConfig = { url: c.tileUrl, a
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setTiles(); redrawAll(); });
 $("zone").addEventListener("change", e => map.setView(...ZONES[e.target.value]));
 
-const layers = { speeds: L.layerGroup().addTo(map), closures: L.layerGroup().addTo(map), reports: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map) };
-const LAYER_LABELS = { speeds: "Traffic speeds", closures: "Closures", reports: "311 reports" };
+const layers = { speeds: L.layerGroup().addTo(map), closures: L.layerGroup().addTo(map), reports: L.layerGroup().addTo(map), cameras: L.layerGroup().addTo(map), route: L.layerGroup().addTo(map) };
+const LAYER_LABELS = { speeds: "Traffic speeds", closures: "Closures", reports: "311 reports", cameras: "Cameras" };
 const hiddenLayers = new Set(store.get("wh-hidden") || []);
 $("layers").innerHTML = Object.entries(LAYER_LABELS).map(([k, l]) => `<button class="btn sm ${hiddenLayers.has(k) ? "" : "on"}" data-layer="${k}" aria-pressed="${!hiddenLayers.has(k)}">${l}</button>`).join("");
 hiddenLayers.forEach(k => map.removeLayer(layers[k]));
@@ -71,7 +72,7 @@ $("layers").addEventListener("click", e => {
 });
 
 /* ------------------------------ state ------------------------------ */
-const feeds = { speeds: [], closures: [], events: [], reports: [], transit: [], weather: { hours: [], alerts: [] } };
+const feeds = { cameras: [], speeds: [], closures: [], events: [], reports: [], transit: [], weather: { hours: [], alerts: [] } };
 const feedErr = {}, feedNote = {};
 let status = {};
 const seenAt = {};
@@ -198,6 +199,55 @@ function renderWeather() {
       <span><b>${h.temp}°${esc(h.unit)}</b> ${esc(h.short)} <span class="m">· rain ${h.rain}% · wind ${esc(h.wind)}</span></span></div>`).join("")}</div>`;
 }
 
+/* ------------------------------ cameras ------------------------------ */
+// Stills come through this site's /api/camera relay; a timestamp query forces a fresh frame.
+const camSrc = id => `/api/camera/${id}.jpg?t=${Date.now()}`;
+const camIcon = online => L.divIcon({ className: `cam-pin${online ? "" : " off"}`, html: "<i></i>", iconSize: [18, 18], iconAnchor: [9, 9], popupAnchor: [0, -10] });
+const camFigure = c => `<figure class="cam${c.online ? "" : " off"}">
+  ${c.online ? `<img data-cam="${esc(c.id)}" src="${camSrc(c.id)}" alt="Live view: ${esc(c.name)}" width="352" height="240" loading="lazy">`
+    : `<div class="cam-off">Camera offline</div>`}
+  <figcaption>${esc(c.name)}</figcaption></figure>`;
+
+function drawCameras() {
+  layers.cameras.clearLayers();
+  for (const c of feeds.cameras) {
+    c.layer = L.marker([c.lat, c.lon], { icon: camIcon(c.online), title: c.name, keyboard: true })
+      .bindPopup(() => camFigure(c), { maxWidth: 380, minWidth: 260, className: "cam-popup" })
+      .addTo(layers.cameras);
+  }
+}
+
+function renderCameras() {
+  const el = $("list-cameras");
+  if (feedErr.cameras && !feeds.cameras.length) { el.innerHTML = `<p class="err">Cameras are unavailable right now (${esc(feedErr.cameras)}).</p>`; return; }
+  if (!feeds.cameras.length) { el.innerHTML = `<p class="empty">Loading cameras…</p>`; return; }
+  const c0 = map.getCenter(), kx = Math.cos(c0.lat * Math.PI / 180);
+  const near = feeds.cameras
+    .map(c => ({ c, d: Math.hypot((c.lat - c0.lat) * 69, (c.lon - c0.lng) * 69 * kx) }))
+    .sort((a, b) => (b.c.online - a.c.online) || a.d - b.d).slice(0, 8);
+  el.innerHTML = near.map(({ c, d }) => `<button class="cam-card" data-id="${esc(c.id)}">${camFigure(c).replace("</figcaption>", ` <span class="m">· ${d.toFixed(1)} mi</span></figcaption>`)}</button>`).join("");
+}
+$("list-cameras").addEventListener("click", e => {
+  const b = e.target.closest("[data-id]"); if (!b) return;
+  const c = feeds.cameras.find(x => x.id === b.dataset.id); if (!c) return;
+  map.setView([c.lat, c.lon], 17); c.layer?.openPopup();
+  if (matchMedia("(max-width:820px)").matches) $("map").scrollIntoView({ behavior: "smooth" });
+});
+
+// Refresh visible camera images every 4 s, and only while the page is on screen.
+setInterval(() => {
+  if (document.hidden) return;
+  document.querySelectorAll("img[data-cam]").forEach(img => {
+    if (!img.offsetParent || img.dataset.loading) return;
+    const next = new Image();
+    img.dataset.loading = "1";
+    next.onload = () => { img.src = next.src; delete img.dataset.loading; img.classList.remove("stale"); };
+    next.onerror = () => { delete img.dataset.loading; img.classList.add("stale"); };
+    next.src = camSrc(img.dataset.cam);
+  });
+}, 4000);
+map.on("moveend", () => { if (!$("pane-cameras").hidden) renderCameras(); });
+
 /* ------------------------------ social ------------------------------ */
 async function loadSocial() {
   const q = $("q-social").value.trim(); if (!q) return;
@@ -214,6 +264,7 @@ $("social-form").addEventListener("submit", e => { e.preventDefault(); loadSocia
 
 /* --------------------------- feed loading --------------------------- */
 const RENDER = {
+  cameras: () => { drawCameras(); renderCameras(); },
   speeds: () => drawSpeeds(),
   closures: () => { drawClosures(); renderClosures(); },
   events: () => renderEvents(),
@@ -370,6 +421,7 @@ function showTab(name) {
   document.querySelectorAll(".tab").forEach(b => b.setAttribute("aria-selected", b.dataset.pane === name));
   document.querySelectorAll(".pane").forEach(p => { p.hidden = p.id !== "pane-" + name; });
   if (name === "closures") renderClosures();
+  if (name === "cameras") renderCameras();
   if (name === "social" && !$("list-social").innerHTML) loadSocial();
   store.set("wh-tab", name);
 }

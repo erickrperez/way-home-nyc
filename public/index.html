@@ -22,8 +22,8 @@
   <div class="row">
     <label class="sr" for="zone">Jump to area</label>
     <select class="btn" id="zone">
+      <option value="msg" selected>Madison Square Garden</option>
       <option value="city">Citywide</option>
-      <option value="msg">Madison Square Garden</option>
       <option value="canyon">Canyon of Heroes</option>
       <option value="midtown">Midtown</option>
       <option value="barclays">Barclays Center</option>
@@ -36,6 +36,7 @@
   <aside class="rail">
     <div class="tabs" role="tablist" aria-label="Feeds">
       <button class="tab" role="tab" id="tab-route" aria-controls="pane-route" data-pane="route" aria-selected="true">Route</button>
+      <button class="tab" role="tab" id="tab-cameras" aria-controls="pane-cameras" data-pane="cameras" aria-selected="false">Cameras</button>
       <button class="tab" role="tab" id="tab-closures" aria-controls="pane-closures" data-pane="closures" aria-selected="false">Closures<span class="n" id="n-closures"></span></button>
       <button class="tab" role="tab" id="tab-events" aria-controls="pane-events" data-pane="events" aria-selected="false">Events<span class="n" id="n-events"></span></button>
       <button class="tab" role="tab" id="tab-reports" aria-controls="pane-reports" data-pane="reports" aria-selected="false">311<span class="n" id="n-reports"></span></button>
@@ -81,9 +82,16 @@
           <span><i class="sw" style="background:var(--ok)"></i>Over 20 mph</span>
           <span><i class="sw c" style="background:var(--crowd)"></i>311 street noise (crowds)</span>
           <span><i class="sw c" style="background:var(--work)"></i>311 street or signal</span>
+          <span><i class="sw cam"></i>Traffic camera</span>
         </div>
         <div class="layers" id="layers"></div>
         <p class="hint">Routes come from OpenStreetMap routers, which don't know about today's closures. That's why each one is scored against the live feeds before it's ranked.</p>
+      </section>
+
+      <section class="pane" id="pane-cameras" role="tabpanel" aria-labelledby="tab-cameras" hidden>
+        <h2>Live traffic cameras</h2>
+        <p class="hint">NYC DOT cameras nearest the map center. Images refresh every few seconds; pan the map to see other cameras.</p>
+        <div class="cams" id="list-cameras"></div>
       </section>
 
       <section class="pane" id="pane-closures" role="tabpanel" aria-labelledby="tab-closures" hidden>

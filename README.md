@@ -9,6 +9,7 @@ A live dashboard for getting around New York when big events close streets. One 
 | Permitted events in the next 18 hours, flagged when they close streets | NYC permitted events (`tvpp-9vvx`) | every 10 min |
 | 311 reports from the last 3 hours (street noise, blocked roads, signals, parking) | NYC 311 (`erm2-nwe9`) | every 3 min |
 | Subway service alerts | MTA GTFS-realtime alerts | every 1 min |
+| Live traffic camera images (hundreds of cameras citywide) | NYC DOT traffic cameras (webcams.nyctmc.org) | list every 30 min; images every 4 s while on screen |
 | Hourly forecast and weather alerts | National Weather Service | every 15 min |
 | Public posts (on demand) | Bluesky search | 2 min cache |
 
@@ -67,6 +68,7 @@ All optional; see `.env.example`.
 | `GET /api/stream` | Server-Sent Events: a `status` event whenever a feed updates |
 | `GET /api/feed/:name` | Items for `speeds`, `closures`, `events`, `reports`, `transit` or `weather` |
 | `GET /api/route?from=lat,lon&to=lat,lon&mode=car\|foot\|bike` | Scored routes, best first |
+| `GET /api/camera/:id.jpg` | Latest still from one NYC DOT camera (relayed, shared across viewers for 2.5 s) |
 | `GET /api/geocode?q=` | Address matches inside NYC |
 | `GET /api/social?q=` | Recent public Bluesky posts |
 | `GET /api/health` | Health check |

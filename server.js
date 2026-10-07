@@ -4,7 +4,7 @@ import { gzipSync } from "node:zlib";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { Hub } from "./lib/hub.js";
-import { fetchRoutes, geocode, searchSocial } from "./lib/feeds.js";
+import { fetchRoutes, geocode, searchSocial, isCameraId, cameraImageUrl } from "./lib/feeds.js";
 import { scoreRoute, NYC_BOX, inBox } from "./lib/geo.js";
 import { demoRoutes, demoSocial } from "./lib/demo.js";
 
@@ -59,6 +59,22 @@ function allow(req, key, perMin) {
 }
 setInterval(() => { const now = Date.now(); for (const [k, b] of buckets) if (now > b.reset) buckets.delete(k); }, 120_000).unref();
 
+const imageCache = new Map();
+async function cameraImage(id) {
+  const hit = imageCache.get(id);
+  if (hit && Date.now() - hit.at < 2500) return hit.pending || hit;
+  const pending = (async () => {
+    const r = await fetch(cameraImageUrl(id), { signal: AbortSignal.timeout(8000), headers: { "User-Agent": "WayHomeNYC/1.0" } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const img = { buf: Buffer.from(await r.arrayBuffer()), type: r.headers.get("content-type") || "image/jpeg", at: Date.now() };
+    imageCache.set(id, img);
+    if (imageCache.size > 200) imageCache.delete(imageCache.keys().next().value);
+    return img;
+  })();
+  imageCache.set(id, { at: Date.now(), pending });
+  try { return await pending; } catch (e) { imageCache.delete(id); throw e; }
+}
+
 const socialCache = new Map();
 const geocodeCache = new Map();
 let lastNominatim = 0;
@@ -89,6 +105,21 @@ async function handle(req, res) {
     hub.on("update", onUpdate);
     const ping = setInterval(() => res.write(": ping\n\n"), 25_000);
     req.on("close", () => { clearInterval(ping); hub.off("update", onUpdate); });
+    return;
+  }
+
+  // Live camera stills, relayed so every browser gets them from this site (and so many viewers
+  // of one camera share a single upstream request every couple of seconds).
+  const cam = p.match(/^\/api\/camera\/([0-9a-f-]{36})\.jpg$/i);
+  if (cam) {
+    const id = cam[1].toLowerCase();
+    if (DEMO) return sendStatic(res, ["public/demo-camera.svg", "image/svg+xml"]);
+    if (!isCameraId(id) || !hub.feed("cameras").items.some(c => c.id === id)) return res.writeHead(404).end();
+    if (!allow(req, "camera", 240)) return res.writeHead(429).end();
+    try {
+      const img = await cameraImage(id);
+      res.writeHead(200, { "Content-Type": img.type, "Content-Length": img.buf.length, "Cache-Control": "no-store" }).end(img.buf);
+    } catch { res.writeHead(502).end(); }
     return;
   }
 

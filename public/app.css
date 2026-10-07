@@ -103,6 +103,23 @@ button.item:hover .t,a.item:hover .d{color:var(--accent)}
 .sw.dash{background:repeating-linear-gradient(90deg,var(--work) 0 5px,transparent 5px 8px)}
 .sw.c{width:10px;height:10px;border-radius:50%}
 .layers{display:flex;flex-wrap:wrap;gap:6px}
+.sw.cam{width:12px;height:12px;border-radius:3px;background:var(--accent);box-shadow:0 0 0 2px var(--panel) inset}
+
+/* Traffic cameras */
+.cam-pin i{display:block;width:18px;height:18px;border-radius:4px;background:var(--accent);border:2px solid var(--panel);box-shadow:0 1px 3px rgb(0 0 0 / .35)}
+.cam-pin i::after{content:"";display:block;width:6px;height:6px;margin:4px auto 0;border-radius:50%;background:var(--panel)}
+.cam-pin.off i{background:var(--muted);opacity:.6}
+.cam{margin:0;display:flex;flex-direction:column;gap:4px}
+.cam img,.cam-off{display:block;width:100%;height:auto;aspect-ratio:352/240;max-width:100%;border-radius:6px;background:var(--chip);object-fit:cover}
+.cam img.stale{opacity:.5}
+.cam-off{display:grid;place-items:center;color:var(--muted);font:600 12px var(--mono)}
+.cam figcaption{font-weight:700;font-size:12.5px}
+.cams{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.cams{align-items:start}
+.cam-card{all:unset;display:block;cursor:pointer;min-width:0;border-radius:8px}
+.cam-card:focus-visible{outline:2px solid var(--accent);outline-offset:3px}
+.cam-card:hover figcaption{color:var(--accent)}
+.cam-popup .leaflet-popup-content{width:340px !important;max-width:72vw}
 .links{display:flex;flex-direction:column;gap:6px}
 .links a{color:var(--accent);font-weight:600;text-decoration:none}
 .links a:hover{text-decoration:underline}
