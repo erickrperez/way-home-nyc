@@ -72,6 +72,7 @@ async function handle(req, res) {
   if (STATIC[p]) return sendStatic(res, STATIC[p]);
 
   if (p === "/api/health") return sendJSON(req, res, 200, { ok: true, demo: DEMO, uptimeS: Math.round(process.uptime()) });
+  if (p === "/api/config") return sendJSON(req, res, 200, { tileUrl: process.env.TILE_URL || null, tileAttribution: process.env.TILE_ATTRIBUTION || null }, 300);
   if (p === "/api/status") return sendJSON(req, res, 200, { demo: DEMO, sources: hub.status() });
 
   if (p.startsWith("/api/feed/")) {

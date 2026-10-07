@@ -57,6 +57,7 @@ All optional; see `.env.example`.
 - `CONTACT_EMAIL`: your email for the User-Agent the weather and address services ask for.
 - `NYC_APP_TOKEN`: a free NYC Open Data app token for higher rate limits.
 - `BSKY_HANDLE` / `BSKY_APP_PASSWORD`: a Bluesky app password, if anonymous post search gets refused.
+- `TILE_URL` / `TILE_ATTRIBUTION`: a different base-map tile provider (for example a keyed MapTiler or Stadia URL). The default is OpenStreetMap's standard tiles, which need no key but are meant for light use; switch to a keyed provider if the site gets heavy traffic.
 
 ## API
 

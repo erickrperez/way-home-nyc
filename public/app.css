@@ -109,6 +109,9 @@ button.item:hover .t,a.item:hover .d{color:var(--accent)}
 .wx{display:grid;grid-template-columns:64px minmax(0,1fr);gap:10px;padding:8px 0;border-bottom:1px solid var(--line)}
 
 .leaflet-container{font:inherit;background:var(--bg)}
+.basemap{filter:saturate(.55) contrast(.95)}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]) .basemap{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.4)}}
+:root[data-theme="dark"] .basemap{filter:invert(1) hue-rotate(180deg) brightness(.85) contrast(.9) saturate(.4)}
 .leaflet-popup-content{font:13px/1.4 var(--body);margin:10px 12px}
 .leaflet-tooltip{font:700 11px var(--mono)}
 .picking #map{cursor:crosshair}

@@ -39,15 +39,21 @@ const ZONES = {
 const map = L.map("map", { preferCanvas: true }).setView(...ZONES.city);
 const isDark = () => document.documentElement.dataset.theme === "dark" ||
   (document.documentElement.dataset.theme !== "light" && matchMedia("(prefers-color-scheme: dark)").matches);
-let tiles;
+// Base map: OpenStreetMap's standard tiles (no key). A server can swap in another
+// provider with TILE_URL / TILE_ATTRIBUTION; dark mode dims the tiles with a CSS filter.
+let tiles, tileConfig = {
+  url: "https://tile.openstreetmap.org/{z}/{x}/{y}.png",
+  attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+};
 function setTiles() {
   if (tiles) tiles.remove();
-  tiles = L.tileLayer(`https://{s}.basemaps.cartocdn.com/${isDark() ? "dark_all" : "light_all"}/{z}/{x}/{y}{r}.png`, {
-    maxZoom: 19, subdomains: "abcd",
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a> · NYC Open Data · MTA · NWS',
+  tiles = L.tileLayer(tileConfig.url, {
+    maxZoom: 19, className: "basemap",
+    attribution: `${tileConfig.attribution} · NYC Open Data · MTA · NWS`,
   }).addTo(map);
 }
 setTiles();
+api("/api/config").then(c => { if (c.tileUrl) { tileConfig = { url: c.tileUrl, attribution: c.tileAttribution || tileConfig.attribution }; setTiles(); } }).catch(() => {});
 matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => { setTiles(); redrawAll(); });
 $("zone").addEventListener("change", e => map.setView(...ZONES[e.target.value]));
 
@@ -66,7 +72,7 @@ $("layers").addEventListener("click", e => {
 
 /* ------------------------------ state ------------------------------ */
 const feeds = { speeds: [], closures: [], events: [], reports: [], transit: [], weather: { hours: [], alerts: [] } };
-const feedErr = {};
+const feedErr = {}, feedNote = {};
 let status = {};
 const seenAt = {};
 
@@ -154,6 +160,7 @@ function renderReports() {
   $("n-reports").textContent = feeds.reports.length || "";
   if (feedErr.reports && !feeds.reports.length) { $("list-reports").innerHTML = `<p class="err">311 is unavailable right now (${esc(feedErr.reports)}).</p>`; return; }
   const bar = { crowd: "var(--crowd)", street: "var(--work)", parking: "var(--muted)" };
+  $("reports-note").textContent = feedNote.reports || "";
   $("list-reports").innerHTML = feeds.reports.length ? feeds.reports.slice(0, 200).map(r => `
     <button class="item" data-id="${esc(r.id)}"><i class="bar" style="background:${bar[r.kind]}"></i>
       <span><span class="t">${esc(r.type)}</span><br><span class="d">${esc(r.descriptor)}</span><br>
@@ -219,7 +226,7 @@ function redrawAll() { Object.values(RENDER).forEach(fn => fn()); if (lastRoutes
 async function loadFeed(key) {
   try {
     const r = await api(`/api/feed/${key}`);
-    feeds[key] = r.items; feedErr[key] = r.status === "failed" ? r.error : "";
+    feeds[key] = r.items; feedErr[key] = r.status === "failed" ? r.error : ""; feedNote[key] = r.note || "";
     RENDER[key]();
   } catch (e) { feedErr[key] = e.message; RENDER[key](); }
 }
