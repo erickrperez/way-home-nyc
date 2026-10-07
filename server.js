@@ -99,10 +99,12 @@ async function handle(req, res) {
     if (!allow(req, "route", 20)) return sendJSON(req, res, 429, { error: "Too many route requests. Wait a minute and try again." });
     try {
       const raw = DEMO ? demoRoutes(from, to) : await fetchRoutes(from, to, mode);
-      const hazards = { closures: hub.feed("closures").items, speeds: hub.feed("speeds").items, reports: hub.feed("reports").items };
+      // Delayed 311 data describes yesterday's streets, so leave it out of the ranking.
+      const reportsUsed = DEMO || hub.feed("reports").fresh !== false;
+      const hazards = { closures: hub.feed("closures").items, speeds: hub.feed("speeds").items, reports: reportsUsed ? hub.feed("reports").items : [] };
       const routes = raw.map(r => ({ duration: r.duration, distance: r.distance, path: r.path, ...scoreRoute(r.path, r.duration, hazards) }))
         .sort((a, b) => a.score - b.score);
-      return sendJSON(req, res, 200, { mode, routes, demo: DEMO });
+      return sendJSON(req, res, 200, { mode, routes, reportsUsed, demo: DEMO });
     } catch (err) {
       return sendJSON(req, res, 502, { error: `The routing service didn't answer (${err.message}). Try again in a minute.` });
     }

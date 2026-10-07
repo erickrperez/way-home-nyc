@@ -116,3 +116,9 @@ test("Hub keeps the last good data when a source starts failing", async () => {
   assert.deepEqual(hub.feed("x").items, [1, 2]);
   assert.equal(hub.status().x.error, "down");
 });
+
+test("describeNyc labels a floating timestamp", async () => {
+  const { describeNyc } = await import("../lib/feeds.js");
+  assert.equal(describeNyc("2026-10-06T02:05:43.000"), "Oct 6, 2:05 am");
+  assert.equal(describeNyc("2026-10-07T18:30:00.000"), "Oct 7, 6:30 pm");
+});

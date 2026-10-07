@@ -152,7 +152,7 @@ function drawReports() {
   for (const r of feeds.reports) {
     const col = kindColor(r.kind);
     r.layer = L.circleMarker([r.lat, r.lon], { radius: 5, color: col, fillColor: col, fillOpacity: .6, weight: 1 })
-      .bindPopup(`<b>${esc(r.type)}</b><br>${esc(r.descriptor)}<br>${esc(titleCase(r.address))}<br><small>${fmtTime(r.created)}</small>`)
+      .bindPopup(`<b>${esc(r.type)}</b><br>${esc(r.descriptor)}<br>${esc(titleCase(r.address))}<br><small>${fmtDate(r.created)}, ${fmtTime(r.created)}</small>`)
       .addTo(layers.reports);
   }
 }
@@ -164,7 +164,7 @@ function renderReports() {
   $("list-reports").innerHTML = feeds.reports.length ? feeds.reports.slice(0, 200).map(r => `
     <button class="item" data-id="${esc(r.id)}"><i class="bar" style="background:${bar[r.kind]}"></i>
       <span><span class="t">${esc(r.type)}</span><br><span class="d">${esc(r.descriptor)}</span><br>
-      <span class="m">${fmtTime(r.created)} · ${esc(titleCase(r.address || r.boro))}</span></span></button>`).join("")
+      <span class="m">${fmtDate(r.created)}, ${fmtTime(r.created)} · ${esc(titleCase(r.address || r.boro))}</span></span></button>`).join("")
     : `<p class="empty">No matching reports in the last 3 hours. 311 records often arrive late.</p>`;
 }
 $("list-reports").addEventListener("click", e => {
@@ -331,9 +331,10 @@ async function findRoutes() {
   $("go").disabled = true; $("route-msg").textContent = "Finding routes…";
   try {
     const q = new URLSearchParams({ from: `${places.start.lat},${places.start.lon}`, to: `${places.home.lat},${places.home.lon}`, mode });
-    const { routes } = await api("/api/route?" + q);
-    lastRoutes = routes; drawRoutes(0, true);
-    $("route-msg").textContent = `${routes.length} route${routes.length > 1 ? "s" : ""}, ranked by fewest problems along the way. Re-run to re-check against fresh data.`;
+    const { routes, reportsUsed = true } = await api("/api/route?" + q);
+    lastRoutes = routes; lastRoutes.reportsUsed = reportsUsed; drawRoutes(0, true);
+    $("route-msg").textContent = `${routes.length} route${routes.length > 1 ? "s" : ""}, ranked by fewest closures and slow roads along the way.` +
+      (reportsUsed ? " Re-run to re-check against fresh data." : " 311 reports aren't counted right now because the city's 311 data is delayed.");
   } catch (e) { $("route-msg").textContent = e.message; }
   finally { $("go").disabled = false; }
 }
@@ -355,7 +356,7 @@ function drawRoutes(sel, fit) {
         <span>${k === 0 ? '<span class="best">Best bet</span> ' : ""}<span class="m">${(x.distance / 1609.34).toFixed(1)} mi</span></span></span>
       <span class="haz"><span><b class="${x.closures.length ? "hot" : ""}">${x.closures.length}</b> closures on route</span>
         <span><b class="${x.slow.length ? "hot" : ""}">${x.slow.length}</b> slow roads</span>
-        <span><b>${x.reports}</b> 311 nearby</span>${x.crowd ? `<span><b>${x.crowd}</b> crowd noise</span>` : ""}</span>
+        ${lastRoutes.reportsUsed ? `<span><b>${x.reports}</b> 311 nearby</span>${x.crowd ? `<span><b>${x.crowd}</b> crowd noise</span>` : ""}` : ""}</span>
       ${x.closures.length ? `<span class="m">Closed: ${[...new Set(x.closures.map(c => titleCase(c.on)))].slice(0, 4).map(esc).join(", ")}</span>` : ""}
       ${x.slow.length ? `<span class="m">Slow: ${x.slow.slice(0, 3).map(s => `${esc(titleCase(s.name))} ${Math.round(s.mph)} mph`).join(", ")}</span>` : ""}
     </button>`).join("");
